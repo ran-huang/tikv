@@ -81,12 +81,12 @@ CARGO_TARGET_DIR ?= $(CURDIR)/target
 # Build-time environment, captured for reporting by the application binary
 BUILD_INFO_GIT_FALLBACK := "Unknown (no git or not git repo)"
 BUILD_INFO_RUSTC_FALLBACK := "Unknown"
-export TIKV_BUILD_TIME := $(shell date -u '+%Y-%m-%d %I:%M:%S')
-export TIKV_BUILD_GIT_HASH := $(shell git rev-parse HEAD 2> /dev/null || echo ${BUILD_INFO_GIT_FALLBACK})
-export TIKV_BUILD_GIT_TAG := $(shell git describe --tag || echo ${BUILD_INFO_GIT_FALLBACK})
-export TIKV_BUILD_GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2> /dev/null || echo ${BUILD_INFO_GIT_FALLBACK})
-export TIKV_BUILD_RUSTC_VERSION := $(shell rustc --version 2> /dev/null || echo ${BUILD_INFO_RUSTC_FALLBACK})
 export TIKV_ENABLE_FEATURES := ${ENABLE_FEATURES}
+export TIKV_BUILD_TIME := $(shell date -u '+%Y-%m-%d %I:%M:%S')
+export TIKV_BUILD_RUSTC_VERSION := $(shell rustc --version 2> /dev/null || echo ${BUILD_INFO_RUSTC_FALLBACK})
+export TIKV_BUILD_GIT_HASH ?= $(shell git rev-parse HEAD 2> /dev/null || echo ${BUILD_INFO_GIT_FALLBACK})
+export TIKV_BUILD_GIT_TAG ?= $(shell git describe --tag || echo ${BUILD_INFO_GIT_FALLBACK})
+export TIKV_BUILD_GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD 2> /dev/null || echo ${BUILD_INFO_GIT_FALLBACK})
 
 # Turn on cargo pipelining to add more build parallelism. This has shown decent
 # speedups in TiKV.
@@ -327,7 +327,10 @@ ctl:
 # A special target for building TiKV docker image.
 .PHONY: docker
 docker:
-	bash ./scripts/gen-dockerfile.sh | docker build -t pingcap/tikv -f - .
+	docker build -t pingcap/tikv . \
+		--build-arg GIT_HASH=${TIKV_BUILD_GIT_HASH} \
+		--build-arg GIT_TAG=${TIKV_BUILD_GIT_TAG} \
+		--build-arg GIT_BRANCH=${TIKV_BUILD_GIT_BRANCH}
 
 ## The driver for script/run-cargo.sh
 ## ----------------------------------
@@ -352,7 +355,7 @@ export X_CARGO_ARGS:=${CARGO_ARGS}
 
 x-build-dist: export X_CARGO_CMD=build
 x-build-dist: export X_CARGO_FEATURES=${ENABLE_FEATURES}
-x-build-dist: export X_CARGO_RELEASE=1
+x-build-dist: export X_CARGO_RELEASE=0
 x-build-dist: export X_CARGO_CONFIG_FILE=${DIST_CONFIG}
 x-build-dist: export X_PACKAGE=cmd
 x-build-dist:
